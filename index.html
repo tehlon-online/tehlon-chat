@@ -287,18 +287,16 @@
                 ]);
                 
                 if (healthResponse.ok && modelResponse.ok) {
-                    setConnectionStatus(true);
                     const modelInfo = await modelResponse.json();
-                    updateModelIndicator(modelInfo);
+                    updateModelDisplay(modelInfo);
+                    setStatus('listening');
                 } else {
-                    setConnectionStatus(false);
-                    modelIndicator.textContent = 'Offline';
-                    modelIndicator.classList.remove('openai', 'claude', 'demo');
+                    modelText.textContent = 'Offline';
+                    setStatus('error', 'Server not responding');
                 }
             } catch (error) {
-                setConnectionStatus(false);
-                modelIndicator.textContent = 'Error';
-                modelIndicator.classList.remove('openai', 'claude', 'demo');
+                modelText.textContent = 'Error';
+                setStatus('error', 'Connection failed');
             }
         }
 
