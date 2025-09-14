@@ -281,20 +281,29 @@
         // Check server health and get model info
         async function checkServerHealth() {
             try {
+                console.log('Checking server health and model info...');
+                
                 const [healthResponse, modelResponse] = await Promise.all([
                     fetch(`${API_BASE_URL}/api/health`),
                     fetch(`${API_BASE_URL}/api/model`)
                 ]);
                 
+                console.log('Health response:', healthResponse.ok);
+                console.log('Model response:', modelResponse.ok);
+                
                 if (healthResponse.ok && modelResponse.ok) {
                     const modelInfo = await modelResponse.json();
+                    console.log('Model info received:', modelInfo);
+                    
                     updateModelDisplay(modelInfo);
                     setStatus('listening');
                 } else {
+                    console.log('Server not responding properly');
                     modelText.textContent = 'Offline';
                     setStatus('error', 'Server not responding');
                 }
             } catch (error) {
+                console.error('Error checking server:', error);
                 modelText.textContent = 'Error';
                 setStatus('error', 'Connection failed');
             }
