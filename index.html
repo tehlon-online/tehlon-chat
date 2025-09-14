@@ -12,17 +12,20 @@
             padding: 0;
         }
         #container {
-            width: 500px;
-            margin: 50px 0 0 30px;
+            width: 800px;
+            margin: 60px auto 0 auto;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
         }
         #game-container, .chat-box {
-            width: 500px;
-            min-height: 400px;
+            width: 800px;
+            min-height: 600px;
             border: 2px solid #000;
             background-color: #fff;
-            padding: 10px;
+            padding: 20px;
             position: relative;
-            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.12);
             font-family: "Courier New", Courier, monospace;
             overflow: visible;
         }
@@ -59,15 +62,15 @@
         .chat-window {
             background-color: #e3e3e3;
             border: 2px solid #000;
-            padding: 10px;
-            height: 280px;
-            width: 478px;
+            padding: 16px;
+            height: 480px;
+            width: 760px;
             overflow-y: auto;
-            margin-bottom: 10px;
-            font-size: 14px;
+            margin-bottom: 16px;
+            font-size: 16px;
             display: flex;
             flex-direction: column;
-            gap: 8px;
+            gap: 12px;
         }
         .chat-input-area {
             display: flex;
@@ -99,20 +102,36 @@
             align-self: flex-end;
             background: #ffecb3;
             color: #333;
-            padding: 6px 10px;
+            padding: 8px 14px;
             border-radius: 12px 12px 0 12px;
             max-width: 75%;
             word-break: break-word;
+            font-weight: bold;
         }
         .chat-message.bot {
             align-self: flex-start;
             background: #e0e0e0;
             color: #222;
-            padding: 6px 10px;
+            padding: 8px 14px;
             border-radius: 12px 12px 12px 0;
             max-width: 75%;
             word-break: break-word;
+            display: flex;
+            align-items: center;
+            gap: 8px;
         }
+        .bot-label {
+            font-size: 13px;
+            font-weight: bold;
+            margin-right: 8px;
+            padding: 2px 8px;
+            border-radius: 8px;
+            color: #fff;
+            background: #888;
+        }
+        .bot-label.openai { background: #44ff44; color: #222; }
+        .bot-label.gemini { background: #4285f4; }
+        .bot-label.claude { background: #ffa500; color: #222; }
         .chat-message.system {
             align-self: center;
             background: #ffeaa7;
@@ -170,6 +189,8 @@
             <div class="chat-window" id="chat-window">
                 <!-- Messages will appear here -->
             </div>
+            <div id="countdown-indicator" style="display:none; text-align:center; font-size:18px; color:#555; margin-bottom:10px;"></div>
+            <button id="continue-btn" style="display:none; margin: 0 auto 10px auto; padding: 8px 24px; font-size: 16px; background: #2e2e2e; color: #fff; border: none; border-radius: 6px; cursor: pointer;">Continue</button>
             <form class="chat-input-area" id="chat-form" autocomplete="off">
                 <input type="text" id="chat-input" placeholder="Type your message..." autocomplete="off" />
                 <button type="submit" id="send-button">Send</button>
@@ -224,20 +245,26 @@
             }
         }
 
-        function appendMessage(content, sender, isSystem = false) {
+        function appendMessage(content, sender, isSystem = false, botName = null) {
             const msgDiv = document.createElement('div');
             msgDiv.className = isSystem ? 'chat-message system' : 'chat-message ' + sender;
-            
             if (sender === 'typing') {
                 msgDiv.className = 'typing-indicator';
                 msgDiv.innerHTML = 'Bot is typing <span class="typing-dots"><span class="typing-dot"></span><span class="typing-dot"></span><span class="typing-dot"></span></span>';
+            } else if (sender === 'bot' && botName) {
+                // Add bot label
+                const label = document.createElement('span');
+                label.className = 'bot-label ' + botName.toLowerCase();
+                label.textContent = botName;
+                msgDiv.appendChild(label);
+                const text = document.createElement('span');
+                text.textContent = content;
+                msgDiv.appendChild(text);
             } else {
                 msgDiv.textContent = content;
             }
-            
             chatWindow.appendChild(msgDiv);
             chatWindow.scrollTop = chatWindow.scrollHeight;
-            
             return msgDiv;
         }
 
@@ -248,6 +275,20 @@
             }
         }
 
+        // --- Roundtable logic ---
+        let conversation = [];
+        let roundtableActive = false;
+        let awaitingContinue = false;
+        let botOrder = [
+            { name: 'OpenAI', key: 'openai' },
+            { name: 'Gemini', key: 'gemini' },
+            { name: 'Claude', key: 'claude' }
+        ];
+        let botIndex = 0;
+        let cycleCount = 0;
+        const countdownDiv = document.getElementById('countdown-indicator');
+        const continueBtn = document.getElementById('continue-btn');
+
         async function sendMessage(message) {
             try {
                 sendButton.disabled = true;
@@ -255,6 +296,7 @@
                 setStatus('thinking');
                 // Show typing indicator
                 const typingDiv = appendMessage('', 'typing');
+                // Send user message to backend
                 const response = await fetch(`${API_BASE_URL}/api/chat`, {
                     method: 'POST',
                     headers: {
@@ -262,18 +304,35 @@
                     },
                     body: JSON.stringify({
                         message: message,
-                        userId: userId
+                        userId: userId,
+                        conversation: conversation
                     })
                 });
                 if (!response.ok) {
                     throw new Error(`HTTP error! status: ${response.status}`);
                 }
                 const data = await response.json();
-                // Remove typing indicator
                 removeTypingIndicator();
-                // Add bot response
-                appendMessage(data.botMessage.content, 'bot');
+                // Add user message to conversation
+                conversation.push({ sender: 'user', content: message });
+                appendMessage(message, 'user');
+                // Add bot responses (array)
+                if (data.botMessages && Array.isArray(data.botMessages)) {
+                    for (const botMsg of data.botMessages) {
+                        appendMessage(botMsg.content, 'bot', false, botMsg.name);
+                        conversation.push({ sender: botMsg.name, content: botMsg.content });
+                    }
+                } else if (data.botMessage) {
+                    // Fallback for single bot
+                    appendMessage(data.botMessage.content, 'bot', false, data.botMessage.name || 'Bot');
+                    conversation.push({ sender: data.botMessage.name || 'Bot', content: data.botMessage.content });
+                }
                 setStatus('listening');
+                // Start roundtable if not already started
+                if (!roundtableActive) {
+                    roundtableActive = true;
+                    startRoundtable();
+                }
             } catch (error) {
                 console.error('Error sending message:', error);
                 removeTypingIndicator();
@@ -283,6 +342,83 @@
                 sendButton.disabled = false;
                 sendButton.textContent = 'Send';
             }
+        }
+
+        // Roundtable bot conversation
+        async function startRoundtable() {
+            if (awaitingContinue) return;
+            for (; botIndex < botOrder.length; botIndex++) {
+                if (awaitingContinue) return;
+                const bot = botOrder[botIndex];
+                await botRespond(bot);
+                cycleCount++;
+                if (cycleCount % 3 === 0) {
+                    awaitingContinue = true;
+                    showContinueButton();
+                    return;
+                }
+            }
+            botIndex = 0;
+            setTimeout(startRoundtable, 1000); // Next round after 1s
+        }
+
+        async function botRespond(bot) {
+            // Show countdown
+            await showCountdown(10, bot.name);
+            setStatus('thinking', `${bot.name} is thinking...`);
+            const typingDiv = appendMessage('', 'typing');
+            // Call backend for this bot
+            const response = await fetch(`${API_BASE_URL}/api/chat`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    message: '',
+                    userId: userId,
+                    conversation: conversation,
+                    bot: bot.key
+                })
+            });
+            removeTypingIndicator();
+            if (response.ok) {
+                const data = await response.json();
+                if (data.botMessage) {
+                    appendMessage(data.botMessage.content, 'bot', false, bot.name);
+                    conversation.push({ sender: bot.name, content: data.botMessage.content });
+                }
+            } else {
+                appendMessage(`${bot.name} failed to respond.`, 'bot', false, bot.name);
+            }
+            setStatus('listening');
+        }
+
+        function showContinueButton() {
+            continueBtn.style.display = 'block';
+            continueBtn.disabled = false;
+            countdownDiv.style.display = 'none';
+        }
+
+        continueBtn.addEventListener('click', () => {
+            continueBtn.style.display = 'none';
+            awaitingContinue = false;
+            botIndex = 0;
+            setTimeout(startRoundtable, 1000);
+        });
+
+        function showCountdown(seconds, botName) {
+            return new Promise(resolve => {
+                countdownDiv.style.display = 'block';
+                let remaining = seconds;
+                countdownDiv.textContent = `${botName} will respond in ${remaining} seconds...`;
+                const interval = setInterval(() => {
+                    remaining--;
+                    countdownDiv.textContent = `${botName} will respond in ${remaining} seconds...`;
+                    if (remaining <= 0) {
+                        clearInterval(interval);
+                        countdownDiv.style.display = 'none';
+                        resolve();
+                    }
+                }, 1000);
+            });
         }
 
         chatForm.addEventListener('submit', async function(e) {
