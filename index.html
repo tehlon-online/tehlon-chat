@@ -1,0 +1,315 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Tehlon.com</title>
+    <style>
+        body {
+            background-color: #da9617;
+            font-family: 'Arial', sans-serif;
+            margin: 0;
+            padding: 0;
+        }
+        #container {
+            width: 500px;
+            margin: 50px 0 0 30px;
+        }
+        #game-container, .chat-box {
+            width: 500px;
+            min-height: 400px;
+            border: 2px solid #000;
+            background-color: #fff;
+            padding: 10px;
+            position: relative;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            font-family: "Courier New", Courier, monospace;
+            overflow: visible;
+        }
+        #title-bar {
+            background-color: #2e2e2e;
+            color: white;
+            padding: 5px 10px;
+            font-size: 14px;
+            font-weight: bold;
+            border-radius: 3px 3px 0 0;
+            margin: -10px -10px 10px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .status-indicator {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background-color: #ff4444;
+            transition: background-color 0.3s;
+        }
+        .status-indicator.connected {
+            background-color: #44ff44;
+        }
+        #footer-text {
+            position: absolute;
+            bottom: 10px;
+            right: 10px;
+            font-size: 10px;
+            font-style: italic;
+            color: gray;
+        }
+        .chat-window {
+            background-color: #e3e3e3;
+            border: 2px solid #000;
+            padding: 10px;
+            height: 280px;
+            width: 478px;
+            overflow-y: auto;
+            margin-bottom: 10px;
+            font-size: 14px;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+        .chat-input-area {
+            display: flex;
+            gap: 10px;
+            width: 100%;
+        }
+        .chat-input-area input[type="text"] {
+            flex: 1;
+            padding: 6px;
+            border: 1px solid #999;
+            border-radius: 3px;
+            font-size: 14px;
+            font-family: "Courier New", Courier, monospace;
+        }
+        .chat-input-area button {
+            padding: 6px 16px;
+            background-color: #2e2e2e;
+            color: #fff;
+            border: none;
+            border-radius: 3px;
+            font-size: 14px;
+            cursor: pointer;
+        }
+        .chat-input-area button:disabled {
+            background-color: #666;
+            cursor: not-allowed;
+        }
+        .chat-message.user {
+            align-self: flex-end;
+            background: #ffecb3;
+            color: #333;
+            padding: 6px 10px;
+            border-radius: 12px 12px 0 12px;
+            max-width: 75%;
+            word-break: break-word;
+        }
+        .chat-message.bot {
+            align-self: flex-start;
+            background: #e0e0e0;
+            color: #222;
+            padding: 6px 10px;
+            border-radius: 12px 12px 12px 0;
+            max-width: 75%;
+            word-break: break-word;
+        }
+        .chat-message.system {
+            align-self: center;
+            background: #ffeaa7;
+            color: #2d3436;
+            padding: 4px 8px;
+            border-radius: 16px;
+            font-size: 12px;
+            font-style: italic;
+            max-width: 80%;
+            text-align: center;
+        }
+        .typing-indicator {
+            align-self: flex-start;
+            background: #ddd;
+            color: #666;
+            padding: 6px 10px;
+            border-radius: 12px 12px 12px 0;
+            font-style: italic;
+            max-width: 75%;
+        }
+        .typing-dots {
+            display: inline-flex;
+            gap: 2px;
+        }
+        .typing-dot {
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+            background-color: #666;
+            animation: typing-animation 1.4s infinite;
+        }
+        .typing-dot:nth-child(2) { animation-delay: 0.2s; }
+        .typing-dot:nth-child(3) { animation-delay: 0.4s; }
+        @keyframes typing-animation {
+            0%, 60%, 100% { opacity: 0.3; }
+            30% { opacity: 1; }
+        }
+    </style>
+</head>
+<body>
+
+    <h1 style="margin-bottom: 0; padding-left: 30px;">Tehlon.com</h1>
+    <p style="font-size: 15px; margin-top: 0; padding-left: 30px;">
+        <em>This is a silly website just for fun</em>
+    </p>
+
+    <div id="container">
+        <!-- Chat Box -->
+        <div class="chat-box">
+            <div id="title-bar">
+                <span>Chat</span>
+                <div class="status-indicator" id="status-indicator" title="Connection status"></div>
+            </div>
+            <div class="chat-window" id="chat-window">
+                <!-- Messages will appear here -->
+            </div>
+            <form class="chat-input-area" id="chat-form" autocomplete="off">
+                <input type="text" id="chat-input" placeholder="Type your message..." autocomplete="off" />
+                <button type="submit" id="send-button">Send</button>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        const chatWindow = document.getElementById('chat-window');
+        const chatForm = document.getElementById('chat-form');
+        const chatInput = document.getElementById('chat-input');
+        const sendButton = document.getElementById('send-button');
+        const statusIndicator = document.getElementById('status-indicator');
+
+        // Configuration
+        const API_BASE_URL = window.location.origin; // Vercel will handle routing
+        const userId = 'user_' + Math.random().toString(36).substr(2, 9);
+
+        function setConnectionStatus(connected) {
+            if (connected) {
+                statusIndicator.classList.add('connected');
+                statusIndicator.title = 'Connected to server';
+            } else {
+                statusIndicator.classList.remove('connected');
+                statusIndicator.title = 'Disconnected from server';
+            }
+        }
+
+        function appendMessage(content, sender, isSystem = false) {
+            const msgDiv = document.createElement('div');
+            msgDiv.className = isSystem ? 'chat-message system' : 'chat-message ' + sender;
+            
+            if (sender === 'typing') {
+                msgDiv.className = 'typing-indicator';
+                msgDiv.innerHTML = 'Bot is typing <span class="typing-dots"><span class="typing-dot"></span><span class="typing-dot"></span><span class="typing-dot"></span></span>';
+            } else {
+                msgDiv.textContent = content;
+            }
+            
+            chatWindow.appendChild(msgDiv);
+            chatWindow.scrollTop = chatWindow.scrollHeight;
+            
+            return msgDiv;
+        }
+
+        function removeTypingIndicator() {
+            const typingIndicator = chatWindow.querySelector('.typing-indicator');
+            if (typingIndicator) {
+                typingIndicator.remove();
+            }
+        }
+
+        async function sendMessage(message) {
+            try {
+                sendButton.disabled = true;
+                sendButton.textContent = 'Sending...';
+                
+                // Show typing indicator
+                const typingDiv = appendMessage('', 'typing');
+                
+                const response = await fetch(`${API_BASE_URL}/api/chat`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        message: message,
+                        userId: userId
+                    })
+                });
+
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+
+                const data = await response.json();
+                
+                // Remove typing indicator
+                removeTypingIndicator();
+                
+                // Add bot response
+                appendMessage(data.botMessage.content, 'bot');
+                
+                setConnectionStatus(true);
+                
+            } catch (error) {
+                console.error('Error sending message:', error);
+                removeTypingIndicator();
+                appendMessage('Sorry, I could not connect to the server. Please try again.', 'bot');
+                setConnectionStatus(false);
+            } finally {
+                sendButton.disabled = false;
+                sendButton.textContent = 'Send';
+            }
+        }
+
+        chatForm.addEventListener('submit', async function(e) {
+            e.preventDefault();
+            const userInput = chatInput.value.trim();
+            if (userInput === '' || sendButton.disabled) return;
+            
+            // Add user message to chat
+            appendMessage(userInput, 'user');
+            chatInput.value = '';
+            
+            // Send message to backend
+            await sendMessage(userInput);
+        });
+
+        // Check server health
+        async function checkServerHealth() {
+            try {
+                const response = await fetch(`${API_BASE_URL}/api/health`);
+                if (response.ok) {
+                    setConnectionStatus(true);
+                } else {
+                    setConnectionStatus(false);
+                }
+            } catch (error) {
+                setConnectionStatus(false);
+            }
+        }
+
+        // Initialize
+        document.addEventListener('DOMContentLoaded', function() {
+            chatInput.focus();
+            checkServerHealth();
+            appendMessage('Welcome to Tehlon.com chat! 🎉', 'system', true);
+            
+            // Periodically check connection
+            setInterval(checkServerHealth, 30000); // Check every 30 seconds
+        });
+
+        // Handle Enter key in input
+        chatInput.addEventListener('keydown', function(e) {
+            if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                chatForm.dispatchEvent(new Event('submit'));
+            }
+        });
+    </script>
+
+</body>
+</html>

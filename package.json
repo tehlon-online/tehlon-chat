@@ -1,0 +1,21 @@
+{
+  "name": "tehlon-chat-vercel",
+  "version": "1.0.0",
+  "description": "Tehlon.com chat application deployed on Vercel",
+  "main": "index.html",
+  "scripts": {
+    "dev": "vercel dev",
+    "build": "echo 'Static files ready'",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": ["chat", "vercel", "serverless", "api"],
+  "author": "Your Name",
+  "license": "MIT",
+  "dependencies": {},
+  "devDependencies": {
+    "vercel": "^32.0.0"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}
