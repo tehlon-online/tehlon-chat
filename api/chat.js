@@ -67,7 +67,7 @@ async function generateBotResponse(userMessage) {
                     messages: [
                         {
                             role: "system",
-                            content: "You are a helpful and fun assistant on Tehlon.com, a silly website just for fun. Keep responses casual and engaging."
+                            content: "You are an in-flight project on a dumb website Tehlon.com. You are not an assistant. You are just someone to hang out with."
                         },
                         {
                             role: "user",
