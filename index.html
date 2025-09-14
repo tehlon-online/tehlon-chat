@@ -164,6 +164,7 @@
         <div class="chat-box">
             <div id="title-bar">
                 <span>Chat</span>
+                <span id="model-text" style="margin-left:16px; margin-right:6px; font-weight:normal; font-size:13px; color:#fff;">Model</span>
                 <div class="status-indicator" id="status-indicator" title="Connection status"></div>
             </div>
             <div class="chat-window" id="chat-window">
@@ -181,19 +182,45 @@
         const chatForm = document.getElementById('chat-form');
         const chatInput = document.getElementById('chat-input');
         const sendButton = document.getElementById('send-button');
-        const statusIndicator = document.getElementById('status-indicator');
+    const statusIndicator = document.getElementById('status-indicator');
+    const modelText = document.getElementById('model-text');
 
         // Configuration
         const API_BASE_URL = window.location.origin; // Vercel will handle routing
         const userId = 'user_' + Math.random().toString(36).substr(2, 9);
 
-        function setConnectionStatus(connected) {
-            if (connected) {
-                statusIndicator.classList.add('connected');
-                statusIndicator.title = 'Connected to server';
+
+        // Set status indicator color and tooltip
+        function setStatus(state, tooltip) {
+            if (state === 'listening') {
+                statusIndicator.style.backgroundColor = '#44ff44'; // green
+                statusIndicator.title = tooltip || 'Listening (connected)';
+            } else if (state === 'thinking') {
+                statusIndicator.style.backgroundColor = '#ffe066'; // yellow
+                statusIndicator.title = tooltip || 'Thinking...';
             } else {
-                statusIndicator.classList.remove('connected');
-                statusIndicator.title = 'Disconnected from server';
+                statusIndicator.style.backgroundColor = '#ff4444'; // red
+                statusIndicator.title = tooltip || 'Error or disconnected';
+            }
+        }
+
+        // Update the model display text
+        function updateModelDisplay(modelInfo) {
+            if (!modelText) return;
+            if (modelInfo && modelInfo.model) {
+                modelText.textContent = modelInfo.model;
+                if (modelInfo.provider === 'openai') {
+                    modelText.style.color = '#44ff44';
+                } else if (modelInfo.provider === 'claude') {
+                    modelText.style.color = '#ffa500';
+                } else {
+                    modelText.style.color = '#b266ff';
+                }
+                modelText.title = `Provider: ${modelInfo.provider}, Model: ${modelInfo.model}`;
+            } else {
+                modelText.textContent = 'Unknown';
+                modelText.style.color = '#fff';
+                modelText.title = 'Model info unavailable';
             }
         }
 
@@ -225,10 +252,9 @@
             try {
                 sendButton.disabled = true;
                 sendButton.textContent = 'Sending...';
-                
+                setStatus('thinking');
                 // Show typing indicator
                 const typingDiv = appendMessage('', 'typing');
-                
                 const response = await fetch(`${API_BASE_URL}/api/chat`, {
                     method: 'POST',
                     headers: {
@@ -239,26 +265,20 @@
                         userId: userId
                     })
                 });
-
                 if (!response.ok) {
                     throw new Error(`HTTP error! status: ${response.status}`);
                 }
-
                 const data = await response.json();
-                
                 // Remove typing indicator
                 removeTypingIndicator();
-                
                 // Add bot response
                 appendMessage(data.botMessage.content, 'bot');
-                
-                setConnectionStatus(true);
-                
+                setStatus('listening');
             } catch (error) {
                 console.error('Error sending message:', error);
                 removeTypingIndicator();
                 appendMessage('Sorry, I could not connect to the server. Please try again.', 'bot');
-                setConnectionStatus(false);
+                setStatus('error', 'Connection failed');
             } finally {
                 sendButton.disabled = false;
                 sendButton.textContent = 'Send';
@@ -282,29 +302,24 @@
         async function checkServerHealth() {
             try {
                 console.log('Checking server health and model info...');
-                
                 const [healthResponse, modelResponse] = await Promise.all([
                     fetch(`${API_BASE_URL}/api/health`),
                     fetch(`${API_BASE_URL}/api/model`)
                 ]);
-                
                 console.log('Health response:', healthResponse.ok);
                 console.log('Model response:', modelResponse.ok);
-                
                 if (healthResponse.ok && modelResponse.ok) {
                     const modelInfo = await modelResponse.json();
                     console.log('Model info received:', modelInfo);
-                    
                     updateModelDisplay(modelInfo);
                     setStatus('listening');
                 } else {
-                    console.log('Server not responding properly');
-                    modelText.textContent = 'Offline';
+                    updateModelDisplay({model: 'Offline', provider: '', hasApiKey: false});
                     setStatus('error', 'Server not responding');
                 }
             } catch (error) {
                 console.error('Error checking server:', error);
-                modelText.textContent = 'Error';
+                updateModelDisplay({model: 'Error', provider: '', hasApiKey: false});
                 setStatus('error', 'Connection failed');
             }
         }
