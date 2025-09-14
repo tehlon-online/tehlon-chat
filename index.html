@@ -278,17 +278,27 @@
             await sendMessage(userInput);
         });
 
-        // Check server health
+        // Check server health and get model info
         async function checkServerHealth() {
             try {
-                const response = await fetch(`${API_BASE_URL}/api/health`);
-                if (response.ok) {
+                const [healthResponse, modelResponse] = await Promise.all([
+                    fetch(`${API_BASE_URL}/api/health`),
+                    fetch(`${API_BASE_URL}/api/model`)
+                ]);
+                
+                if (healthResponse.ok && modelResponse.ok) {
                     setConnectionStatus(true);
+                    const modelInfo = await modelResponse.json();
+                    updateModelIndicator(modelInfo);
                 } else {
                     setConnectionStatus(false);
+                    modelIndicator.textContent = 'Offline';
+                    modelIndicator.classList.remove('openai', 'claude', 'demo');
                 }
             } catch (error) {
                 setConnectionStatus(false);
+                modelIndicator.textContent = 'Error';
+                modelIndicator.classList.remove('openai', 'claude', 'demo');
             }
         }
 
