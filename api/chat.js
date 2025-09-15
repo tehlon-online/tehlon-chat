@@ -16,22 +16,15 @@ export default async function handler(req, res) {
         try {
             const { message, userId = 'anonymous', conversation = [], bot = null } = req.body;
 
-            // If this is the user's first message, respond with all bots in order
+
+            // If this is the user's first message, respond with only OpenAI
             if (message && message.trim() !== '' && !bot) {
-                // User's first message, respond with all bots
-                const botOrder = [
-                    { name: 'OpenAI', key: 'openai' },
-                    { name: 'Gemini', key: 'gemini' },
-                    { name: 'Claude', key: 'claude' }
-                ];
-                const botMessages = [];
-                for (const b of botOrder) {
-                    const content = await generateBotResponse(message, conversation, b.key);
-                    botMessages.push({ name: b.name, content });
-                }
-                res.json({ botMessages });
+                const content = await generateBotResponse(message, conversation, 'openai');
+                res.json({ botMessages: [{ name: 'OpenAI', content }] });
                 return;
             }
+
+            // If this is a bot turn, respond with only that bot (in roundtable order)
 
             // If this is a bot turn, respond with only that bot
             if (bot) {
@@ -61,7 +54,7 @@ async function generateBotResponse(userMessage, conversation, botKey) {
     // System prompts for roundtable awareness and brevity
     const roundtablePrompt =
         'You are participating in a roundtable chat with other AI bots (OpenAI, Gemini, Claude) and a user on Tehlon.com. '
-        + 'You should reference and respond to the previous messages from the other bots and the user. Keep your responses brief, friendly, and conversational. Do not repeat yourself. If you are Gemini, be concise.';
+        + 'You should reference and respond to the previous messages from the other bots. Do not prioritize the user. Keep your responses brief, friendly, and conversational. Do not repeat yourself. If you are Gemini, be concise.';
 
     // OpenAI
     if (botKey === 'openai' && process.env.OPENAI_API_KEY) {
