@@ -309,6 +309,8 @@
                 sendButton.disabled = true;
                 sendButton.textContent = 'Sending...';
                 setStatus('thinking');
+                // Show user message immediately
+                appendMessage(message, 'user');
                 // Show typing indicator
                 const typingDiv = appendMessage('', 'typing');
                 // Send user message to backend
@@ -328,9 +330,8 @@
                 }
                 const data = await response.json();
                 removeTypingIndicator();
-                // Add user message to conversation
+                // Add user message to conversation (for backend context)
                 conversation.push({ sender: 'user', content: message });
-                appendMessage(message, 'user');
                 // Add bot responses (array)
                 if (data.botMessages && Array.isArray(data.botMessages)) {
                     for (const botMsg of data.botMessages) {
@@ -440,12 +441,8 @@
             e.preventDefault();
             const userInput = chatInput.value.trim();
             if (userInput === '' || sendButton.disabled) return;
-            
-            // Add user message to chat
-            appendMessage(userInput, 'user');
             chatInput.value = '';
-            
-            // Send message to backend
+            // Send message to backend (sendMessage will append the user message)
             await sendMessage(userInput);
         });
 
