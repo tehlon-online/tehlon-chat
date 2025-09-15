@@ -92,13 +92,13 @@ async function generateBotResponse(userMessage, conversation, botKey) {
         }
     }
     // Gemini (Google)
-    if (botKey === 'gemini' && process.env.GOOGLE_AI_API_KEY) {
+    if (botKey === 'gemini' && process.env.GEMINI_API_KEY) {
         // Placeholder: implement Gemini API call here
-        // For now, return a demo response
+        // For now, return `Gemini (Google) says: [This is a placeholder response. Integrate Gemini API here.]`
         return `Gemini (Google) says: [This is a placeholder response. Integrate Gemini API here.]`;
     }
     // Claude
-    if (botKey === 'claude' && process.env.CLAUDE_API_KEY) {
+    if (botKey === 'claude' && process.env.ANTHROPIC_API_KEY) {
         try {
             let prompt = '';
             for (const msg of context) {
@@ -110,7 +110,7 @@ async function generateBotResponse(userMessage, conversation, botKey) {
             const response = await fetch('https://api.anthropic.com/v1/messages', {
                 method: 'POST',
                 headers: {
-                    'x-api-key': process.env.CLAUDE_API_KEY,
+                    'x-api-key': process.env.ANTHROPIC_API_KEY,
                     'Content-Type': 'application/json',
                     'anthropic-version': '2023-06-01'
                 },
