@@ -12,15 +12,18 @@
             padding: 0;
         }
         #container {
-            width: 800px;
+            width: 100%;
+            max-width: 800px;
             margin: 60px auto 0 auto;
             display: flex;
             flex-direction: column;
             align-items: center;
+            padding: 0 8px;
         }
         #game-container, .chat-box {
-            width: 800px;
-            min-height: 600px;
+            width: 100%;
+            max-width: 800px;
+            min-height: 60vh;
             border: 2px solid #000;
             background-color: #fff;
             padding: 20px;
@@ -28,6 +31,35 @@
             box-shadow: 0 4px 12px rgba(0,0,0,0.12);
             font-family: "Courier New", Courier, monospace;
             overflow: visible;
+        }
+        @media (max-width: 900px) {
+            #container, #game-container, .chat-box, .chat-window {
+                max-width: 100vw;
+            }
+            .chat-window {
+                max-width: 100vw;
+            }
+        }
+        @media (max-width: 600px) {
+            #container {
+                margin: 20px auto 0 auto;
+                padding: 0 2px;
+            }
+            #game-container, .chat-box {
+                padding: 8px;
+                min-height: 60vh;
+            }
+            .chat-window {
+                padding: 8px;
+                font-size: 15px;
+                min-height: 200px;
+                height: 40vh;
+                max-height: 50vh;
+            }
+            .chat-input-area button {
+                padding: 6px 8px;
+                font-size: 13px;
+            }
         }
         #title-bar {
             background-color: #2e2e2e;
@@ -117,21 +149,24 @@
             max-width: 75%;
             word-break: break-word;
             display: flex;
-            align-items: center;
-            gap: 8px;
+            flex-direction: column;
+            align-items: flex-start;
+            gap: 2px;
         }
-        .bot-label {
-            font-size: 13px;
-            font-weight: bold;
-            margin-right: 8px;
-            padding: 2px 8px;
-            border-radius: 8px;
-            color: #fff;
-            background: #888;
-        }
-        .bot-label.openai { background: #44ff44; color: #222; }
-        .bot-label.gemini { background: #4285f4; }
-        .bot-label.claude { background: #ffa500; color: #222; }
+            .bot-label {
+                font-size: 13px;
+                font-weight: bold;
+                margin-bottom: 2px;
+                margin-right: 0;
+                padding: 2px 8px;
+                border-radius: 8px;
+                color: #fff;
+                background: #888;
+                align-self: flex-start;
+            }
+            .bot-label.openai { background: #44ff44; color: #222; }
+            .bot-label.gemini { background: #4285f4; }
+            .bot-label.claude { background: #ffa500; color: #222; }
         .chat-message.system {
             align-self: center;
             background: #ffeaa7;
@@ -183,7 +218,7 @@
         <div class="chat-box">
             <div id="title-bar">
                 <span>Chat</span>
-                <span id="model-text" style="margin-left:16px; margin-right:6px; font-weight:normal; font-size:13px; color:#fff;">Model</span>
+                    <!-- Model name removed from header as requested -->
                 <div class="status-indicator" id="status-indicator" title="Connection status"></div>
             </div>
             <div class="chat-window" id="chat-window">
@@ -405,9 +440,11 @@
             e.preventDefault();
             const userInput = chatInput.value.trim();
             if (userInput === '' || sendButton.disabled) return;
+            
             // Add user message to chat
             appendMessage(userInput, 'user');
             chatInput.value = '';
+            
             // Send message to backend
             await sendMessage(userInput);
         });
