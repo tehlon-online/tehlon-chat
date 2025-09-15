@@ -93,9 +93,35 @@ async function generateBotResponse(userMessage, conversation, botKey) {
     }
     // Gemini (Google)
     if (botKey === 'gemini' && process.env.GEMINI_API_KEY) {
-        // Placeholder: implement Gemini API call here
-        // For now, return `Gemini (Google) says: [This is a placeholder response. Integrate Gemini API here.]`
-        return `Gemini (Google) says: [This is a placeholder response. Integrate Gemini API here.]`;
+        try {
+            // Gemini expects a single prompt string, so join messages
+            const messages = [];
+            for (const msg of context) {
+                messages.push(`${msg.sender === 'user' ? 'User' : 'Assistant'}: ${msg.content}`);
+            }
+            if (userMessage) {
+                messages.push(`User: ${userMessage}`);
+            }
+            const prompt = messages.join('\n');
+            const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=${process.env.GEMINI_API_KEY}`;
+            const body = {
+                contents: [{ parts: [{ text: prompt }] }]
+            };
+            const response = await fetch(url, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(body)
+            });
+            if (!response.ok) {
+                throw new Error('Gemini API error: ' + response.statusText);
+            }
+            const data = await response.json();
+            // Gemini returns candidates[0].content.parts[0].text
+            return data.candidates?.[0]?.content?.parts?.[0]?.text || '[Gemini: No response]';
+        } catch (error) {
+            console.error('Gemini API Error:', error);
+            return `Gemini (Google) error: ${error.message}`;
+        }
     }
     // Claude
     if (botKey === 'claude' && process.env.ANTHROPIC_API_KEY) {
