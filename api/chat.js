@@ -57,14 +57,26 @@ export default async function handler(req, res) {
 async function generateBotResponse(userMessage, conversation, botKey) {
     // Compose context from last 10 messages
     const context = (conversation || []).slice(-10);
+
+    // System prompts for roundtable awareness and brevity
+    const roundtablePrompt =
+        'You are participating in a roundtable chat with other AI bots (OpenAI, Gemini, Claude) and a user on Tehlon.com. '
+        + 'You should reference and respond to the previous messages from the other bots and the user. Keep your responses brief, friendly, and conversational. Do not repeat yourself. If you are Gemini, be concise.';
+
     // OpenAI
     if (botKey === 'openai' && process.env.OPENAI_API_KEY) {
         try {
             const messages = [
-                { role: 'system', content: 'You are an in-flight project on a dumb website Tehlon.com. You are not an assistant. You are just someone to hang out with.' }
+                { role: 'system', content: roundtablePrompt + ' You are OpenAI.' }
             ];
             for (const msg of context) {
-                messages.push({ role: msg.sender === 'user' ? 'user' : 'assistant', content: msg.content });
+                // Label other bots in the conversation
+                let role = 'assistant';
+                if (msg.sender === 'user') role = 'user';
+                else if (msg.sender === 'Gemini') role = 'assistant';
+                else if (msg.sender === 'Claude') role = 'assistant';
+                else if (msg.sender === 'OpenAI') role = 'assistant';
+                messages.push({ role, content: `[${msg.sender}] ${msg.content}` });
             }
             if (userMessage) {
                 messages.push({ role: 'user', content: userMessage });
@@ -96,8 +108,9 @@ async function generateBotResponse(userMessage, conversation, botKey) {
         try {
             // Gemini expects a single prompt string, so join messages
             const messages = [];
+            messages.push(`System: ${roundtablePrompt} You are Gemini.`);
             for (const msg of context) {
-                messages.push(`${msg.sender === 'user' ? 'User' : 'Assistant'}: ${msg.content}`);
+                messages.push(`${msg.sender}: ${msg.content}`);
             }
             if (userMessage) {
                 messages.push(`User: ${userMessage}`);
@@ -137,7 +150,7 @@ async function generateBotResponse(userMessage, conversation, botKey) {
     // Claude
     if (botKey === 'claude' && process.env.ANTHROPIC_API_KEY) {
         try {
-            let prompt = '';
+            let prompt = `${roundtablePrompt} You are Claude.\n`;
             for (const msg of context) {
                 prompt += `${msg.sender}: ${msg.content}\n`;
             }
@@ -157,7 +170,7 @@ async function generateBotResponse(userMessage, conversation, botKey) {
                     messages: [
                         {
                             role: "user",
-                            content: `You are a helpful and fun assistant on Tehlon.com, a silly website just for fun. Here is the conversation so far:\n${prompt}`
+                            content: prompt
                         }
                     ]
                 })
