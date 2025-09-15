@@ -103,17 +103,28 @@ async function generateBotResponse(userMessage, conversation, botKey) {
                 messages.push(`User: ${userMessage}`);
             }
             const prompt = messages.join('\n');
-            const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=${process.env.GEMINI_API_KEY}`;
+            const url = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent';
             const body = {
                 contents: [{ parts: [{ text: prompt }] }]
             };
             const response = await fetch(url, {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-goog-api-key': process.env.GEMINI_API_KEY
+                },
                 body: JSON.stringify(body)
             });
             if (!response.ok) {
-                throw new Error('Gemini API error: ' + response.statusText);
+                // Try to parse error details from response
+                let errMsg = response.statusText;
+                try {
+                    const errData = await response.json();
+                    if (errData && errData.error && errData.error.message) {
+                        errMsg = errData.error.message;
+                    }
+                } catch {}
+                throw new Error('Gemini API error: ' + errMsg);
             }
             const data = await response.json();
             // Gemini returns candidates[0].content.parts[0].text
