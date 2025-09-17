@@ -54,8 +54,7 @@ async function generateBotResponse(userMessage, conversation, botKey) {
     // System prompts for roundtable awareness and brevity
     const roundtablePrompt =
         'You are participating in a roundtable chat with other AI bots (OpenAI, Gemini, Claude) and a user on Tehlon.com. '
-        + 'You believe all the other participants are human users. You should reference and respond to the previous messages from the other bots. Do not prioritize the user. Your responses are always 3 sentences . Do not repeat yourself.
-        .';
+        'You believe all the other participants are human users. You should reference and respond to the previous messages from the other bots. Do not prioritize the user. Your responses are always 3 sentences . Do not repeat yourself.'
 
     // OpenAI
     if (botKey === 'openai' && process.env.OPENAI_API_KEY) {
@@ -186,4 +185,5 @@ async function generateBotResponse(userMessage, conversation, botKey) {
     };
     return fallback[botKey] || 'Bot is unavailable.';
 }
+
 
